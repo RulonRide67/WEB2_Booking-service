@@ -8,7 +8,6 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.static('public'));
 
-// Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('Connected to MongoDB'))
   .catch(err => console.log('DB Error:', err));
@@ -34,9 +33,11 @@ app.get('/status', (req, res) => {
 });
 
 // API routes
+const authRouter = require('./routes/auth');
 const bookingsRouter = require('./routes/bookings');
 const servicesRouter = require('./routes/services');
 
+app.use('/auth', authRouter);
 app.use('/bookings', bookingsRouter);
 app.use('/services', servicesRouter);
 
