@@ -87,8 +87,8 @@ const validateRegister = (req, res, next) => {
   if (!isNonEmptyString(password) || password.length < 6) {
     errors.push('password must be at least 6 characters');
   }
-  if (role && !['user', 'admin'].includes(role)) {
-    errors.push('role must be user or admin');
+  if (role) {
+    errors.push('role cannot be set during registration');
   }
 
   if (errors.length > 0) {

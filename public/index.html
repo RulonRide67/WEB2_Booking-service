@@ -72,6 +72,44 @@
             color: green;
             margin: 10px 0;
         }
+        .row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .row > * {
+            flex: 1 1 200px;
+        }
+        .item-actions {
+            margin-top: 8px;
+            display: flex;
+            gap: 8px;
+        }
+        .item-actions button {
+            width: auto;
+            padding: 6px 10px;
+        }
+        .btn-secondary {
+            background: #1e88e5;
+        }
+        .btn-secondary:hover {
+            background: #1976d2;
+        }
+        .btn-danger {
+            background: #e53935;
+        }
+        .btn-danger:hover {
+            background: #c62828;
+        }
+        @media (max-width: 700px) {
+            body {
+                margin: 20px auto;
+                padding: 12px;
+            }
+            .section {
+                padding: 14px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -92,10 +130,6 @@
             <h2>Register</h2>
             <input type="email" id="regEmail" placeholder="Email" required>
             <input type="password" id="regPassword" placeholder="Password (min 6 chars)" required>
-            <select id="regRole">
-                <option value="user">User</option>
-                <option value="admin">Admin</option>
-            </select>
             <button onclick="register()">Register</button>
             <div id="registerError" class="error"></div>
         </div>
@@ -130,7 +164,7 @@
 
         <!-- Create Booking Form (admin only) -->
         <div class="section" id="createBookingSection">
-            <h2>Create New Booking</h2>
+            <h2 id="bookingFormTitle">Create New Booking</h2>
             <input type="text" id="customerName" placeholder="Customer Name" required>
             <select id="serviceId"></select>
             <input type="datetime-local" id="bookingDate" required>
@@ -138,7 +172,10 @@
             <input type="number" id="price" placeholder="Price" min="0" required>
             <input type="email" id="customerEmail" placeholder="Email" required>
             <input type="text" id="notes" placeholder="Notes (optional)">
-            <button onclick="createBooking()">Create Booking</button>
+            <div class="row">
+                <button onclick="submitBooking()" id="bookingSubmitBtn">Create Booking</button>
+                <button onclick="cancelEdit()" class="btn-secondary" id="cancelEditBtn">Cancel Edit</button>
+            </div>
             <div id="createError" class="error"></div>
             <div id="createSuccess" class="success"></div>
         </div>
@@ -152,11 +189,14 @@
     </div>
 
     <script>
-        const API_URL = 'http://localhost:3000';
+        const API_URL = window.location.origin;
         let token = localStorage.getItem('token');
         let currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+        let editingBookingId = null;
+        let lastBookings = [];
 
         window.onload = function() {
+            document.getElementById('cancelEditBtn').classList.add('hidden');
             if (token) {
                 showMainContent();
                 loadServices();
@@ -167,13 +207,12 @@
         async function register() {
             const email = document.getElementById('regEmail').value;
             const password = document.getElementById('regPassword').value;
-            const role = document.getElementById('regRole').value;
 
             try {
                 const response = await fetch(`${API_URL}/auth/register`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password, role })
+                    body: JSON.stringify({ email, password })
                 });
 
                 const data = await response.json();
@@ -240,7 +279,7 @@
 
             if (currentUser.role !== 'admin') {
                 document.getElementById('createServiceSection').classList.add('hidden');
-                document.getElementById('createBookingSection').classList.add('hidden');
+                document.getElementById('createBookingSection').classList.remove('hidden');
             } else {
                 document.getElementById('createServiceSection').classList.remove('hidden');
                 document.getElementById('createBookingSection').classList.remove('hidden');
@@ -288,7 +327,7 @@
             }
         }
 
-        async function createBooking() {
+        async function submitBooking() {
             const booking = {
                 customerName: document.getElementById('customerName').value,
                 service: document.getElementById('serviceId').value,
@@ -300,8 +339,11 @@
             };
 
             try {
-                const response = await fetch(`${API_URL}/bookings`, {
-                    method: 'POST',
+                const method = editingBookingId ? 'PUT' : 'POST';
+                const url = editingBookingId ? `${API_URL}/bookings/${editingBookingId}` : `${API_URL}/bookings`;
+
+                const response = await fetch(url, {
+                    method,
                     headers: { 
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${token}`
@@ -313,12 +355,8 @@
                 
                 if (response.ok) {
                     document.getElementById('createError').textContent = '';
-                    document.getElementById('createSuccess').textContent = 'Booking created successfully!';
-                    document.getElementById('customerName').value = '';
-                    document.getElementById('duration').value = '';
-                    document.getElementById('price').value = '';
-                    document.getElementById('customerEmail').value = '';
-                    document.getElementById('notes').value = '';
+                    document.getElementById('createSuccess').textContent = editingBookingId ? 'Booking updated successfully!' : 'Booking created successfully!';
+                    resetBookingForm();
                     loadBookings();
                     setTimeout(() => {
                         document.getElementById('createSuccess').textContent = '';
@@ -331,9 +369,75 @@
             }
         }
 
+
+        function resetBookingForm() {
+            editingBookingId = null;
+            document.getElementById('bookingFormTitle').textContent = 'Create New Booking';
+            document.getElementById('bookingSubmitBtn').textContent = 'Create Booking';
+            document.getElementById('cancelEditBtn').classList.add('hidden');
+            document.getElementById('customerName').value = '';
+            document.getElementById('duration').value = '';
+            document.getElementById('price').value = '';
+            document.getElementById('bookingDate').value = '';
+            document.getElementById('customerEmail').value = '';
+            document.getElementById('notes').value = '';
+        }
+
+        function cancelEdit() {
+            resetBookingForm();
+        }
+
+        function startEditById(id) {
+            const booking = lastBookings.find(item => item._id === id);
+            if (!booking) return;
+            editingBookingId = booking._id;
+            document.getElementById('bookingFormTitle').textContent = 'Edit Booking';
+            document.getElementById('bookingSubmitBtn').textContent = 'Update Booking';
+            document.getElementById('cancelEditBtn').classList.remove('hidden');
+            document.getElementById('customerName').value = booking.customerName;
+            document.getElementById('serviceId').value = booking.service ? booking.service._id : '';
+            document.getElementById('bookingDate').value = booking.bookingDate ? booking.bookingDate.slice(0,16) : '';
+            document.getElementById('duration').value = booking.duration;
+            document.getElementById('price').value = booking.price;
+            document.getElementById('customerEmail').value = booking.customerEmail;
+            document.getElementById('notes').value = booking.notes || '';
+        }
+
+        async function deleteBooking(id) {
+            if (!confirm('Delete this booking?')) return;
+            try {
+                const response = await fetch(`${API_URL}/bookings/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (response.ok) {
+                    loadBookings();
+                }
+            } catch (error) {
+                console.error('Error deleting booking:', error);
+            }
+        }
+
+        async function deleteService(id) {
+            if (!confirm('Delete this service?')) return;
+            try {
+                const response = await fetch(`${API_URL}/services/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (response.ok) {
+                    loadServices();
+                }
+            } catch (error) {
+                console.error('Error deleting service:', error);
+            }
+        }
+
         async function loadServices() {
             try {
-                const response = await fetch(`${API_URL}/services`);
+                const response = await fetch(`${API_URL}/services`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
                 const services = await response.json();
 
                 const listDiv = document.getElementById('servicesList');
@@ -355,10 +459,16 @@
 
                     const div = document.createElement('div');
                     div.className = 'service-item';
+                    const actions = currentUser.role === 'admin'
+                        ? `<div class="item-actions">
+                             <button class="btn-danger" onclick=\"deleteService('${service._id}')\">Delete</button>
+                           </div>`
+                        : '';
                     div.innerHTML = `
                         <strong>${service.name}</strong> - ${service.category}<br>
                         ${service.description}<br>
                         Price: $${service.basePrice} | Default Duration: ${service.defaultDuration} min
+                        ${actions}
                     `;
                     listDiv.appendChild(div);
                 });
@@ -369,8 +479,11 @@
 
         async function loadBookings() {
             try {
-                const response = await fetch(`${API_URL}/bookings`);
+                const response = await fetch(`${API_URL}/bookings`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
                 const bookings = await response.json();
+                lastBookings = bookings;
                 
                 const listDiv = document.getElementById('bookingsList');
                 listDiv.innerHTML = '';
@@ -390,6 +503,10 @@
                         Duration: ${booking.duration} min | Price: $${booking.price}<br>
                         Status: ${booking.status}<br>
                         Email: ${booking.customerEmail}
+                        <div class="item-actions">
+                          <button class="btn-secondary" onclick=\"startEditById('${booking._id}')\">Edit</button>
+                          <button class="btn-danger" onclick=\"deleteBooking('${booking._id}')\">Delete</button>
+                        </div>
                     `;
                     listDiv.appendChild(div);
                 });

@@ -1,3 +1,4 @@
+const Booking = require('../models/Booking');
 const Service = require('../models/Service');
 
 exports.createService = async (req, res) => {
@@ -49,6 +50,11 @@ exports.updateService = async (req, res) => {
 
 exports.deleteService = async (req, res) => {
   try {
+    const existingBooking = await Booking.findOne({ service: req.params.id });
+    if (existingBooking) {
+      return res.status(409).json({ error: 'Service has bookings. Delete bookings first.' });
+    }
+
     const service = await Service.findByIdAndDelete(req.params.id);
     if (!service) {
       return res.status(404).json({ error: 'Service not found' });

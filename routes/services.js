@@ -5,9 +5,9 @@ const auth = require('../middleware/auth');
 const roleCheck = require('../middleware/roleCheck');
 const { validateService, validateObjectIdParam } = require('../middleware/validate');
 
-// Public routes
-router.get('/', serviceController.getAllServices);
-router.get('/:id', validateObjectIdParam, serviceController.getServiceById);
+// Auth required routes
+router.get('/', auth, serviceController.getAllServices);
+router.get('/:id', auth, validateObjectIdParam, serviceController.getServiceById);
 
 // Protected routes - admin only
 router.post('/', auth, roleCheck, validateService, serviceController.createService);

@@ -1,6 +1,12 @@
 const Booking = require('../models/Booking');
 const Service = require('../models/Service');
 
+const canAccessBooking = (booking, user) => {
+  if (!booking || !user) return false;
+  if (user.role === 'admin') return true;
+  return String(booking.user) === String(user.userId);
+};
+
 exports.createBooking = async (req, res) => {
   try {
     const service = await Service.findById(req.body.service);
@@ -8,9 +14,17 @@ exports.createBooking = async (req, res) => {
       return res.status(400).json({ error: 'Service not found' });
     }
 
-    const booking = new Booking(req.body);
+    const bookingData = { ...req.body };
+    delete bookingData.user;
+
+    const booking = new Booking({
+      ...bookingData,
+      user: req.user.userId
+    });
+
     await booking.save();
     await booking.populate('service');
+
     res.status(201).json(booking);
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -19,7 +33,8 @@ exports.createBooking = async (req, res) => {
 
 exports.getAllBookings = async (req, res) => {
   try {
-    const bookings = await Booking.find().populate('service');
+    const filter = req.user.role === 'admin' ? {} : { user: req.user.userId };
+    const bookings = await Booking.find(filter).populate('service');
     res.json(bookings);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -32,6 +47,11 @@ exports.getBookingById = async (req, res) => {
     if (!booking) {
       return res.status(404).json({ error: 'Booking not found' });
     }
+
+    if (!canAccessBooking(booking, req.user)) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
     res.json(booking);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -40,21 +60,30 @@ exports.getBookingById = async (req, res) => {
 
 exports.updateBooking = async (req, res) => {
   try {
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+
+    if (!canAccessBooking(booking, req.user)) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
     const service = await Service.findById(req.body.service);
     if (!service) {
       return res.status(400).json({ error: 'Service not found' });
     }
 
-    const booking = await Booking.findByIdAndUpdate(
+    const bookingData = { ...req.body };
+    delete bookingData.user;
+
+    const updated = await Booking.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      bookingData,
       { new: true, runValidators: true }
-    );
-    if (!booking) {
-      return res.status(404).json({ error: 'Booking not found' });
-    }
-    await booking.populate('service');
-    res.json(booking);
+    ).populate('service');
+
+    res.json(updated);
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
@@ -62,11 +91,17 @@ exports.updateBooking = async (req, res) => {
 
 exports.deleteBooking = async (req, res) => {
   try {
-    const booking = await Booking.findByIdAndDelete(req.params.id);
+    const booking = await Booking.findById(req.params.id);
     if (!booking) {
       return res.status(404).json({ error: 'Booking not found' });
     }
-    res.json({ message: 'Booking deleted', booking });
+
+    if (!canAccessBooking(booking, req.user)) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    await booking.deleteOne();
+    res.json({ message: 'Booking deleted' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

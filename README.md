@@ -114,10 +114,10 @@ The server will run on http://localhost:3000
 
 The application uses two roles: user and admin.
 
-- user: Can only read data (GET requests). Cannot create, update, or delete bookings or services.
-- admin: Has full access. Can create, update, and delete bookings and services.
+- user: Must be logged in. Can create, update, and delete only their own bookings. Can read services.
+- admin: Has full access. Can create, update, and delete services and all bookings.
 
-When a user registers, the default role is set to user. To create an admin account, the role field must be explicitly set to admin during registration.
+When a user registers, the default role is set to user. Admin accounts are created ??????? (????? ??/??????), ?? ????? ???????????.
 
 When a user logs in, a JWT token is generated containing the user's ID and role. This token must be included in the Authorization header of every protected request. The middleware checks the token first, then verifies whether the user has the required role.
 
@@ -152,19 +152,7 @@ A ready-to-import Postman collection is included in the project root:
 
 ## How to Test with Postman
 
-### 1. Register an admin account
-
-POST http://localhost:3000/auth/register
-
-```json
-{
-  "email": "admin@test.com",
-  "password": "admin123",
-  "role": "admin"
-}
-```
-
-### 2. Register a regular user account
+### 1. Register a user account
 
 POST http://localhost:3000/auth/register
 
@@ -175,7 +163,7 @@ POST http://localhost:3000/auth/register
 }
 ```
 
-### 3. Login as admin
+### 2. Login as admin (created manually)
 
 POST http://localhost:3000/auth/login
 
@@ -188,7 +176,7 @@ POST http://localhost:3000/auth/login
 
 Copy the token from the response.
 
-### 4. Create a service as admin
+### 3. Create a service as admin
 
 POST http://localhost:3000/services
 
@@ -212,7 +200,7 @@ Expected result: 201 Created
 
 Copy the created service `_id` from the response.
 
-### 5. Create a booking as admin
+### 4. Create a booking as admin
 
 POST http://localhost:3000/bookings
 
@@ -235,19 +223,19 @@ Body:
 
 Expected result: 201 Created
 
-### 6. Try to create a booking as a regular user
+### 5. Try to create a booking as a regular user
 
 Login as user@test.com, copy the token, and repeat the request above with the user token.
 
 Expected result: 403 Forbidden
 
-### 7. Try to create a booking without a token
+### 6. Try to create a booking without a token
 
 Repeat the POST request without the Authorization header.
 
 Expected result: 401 Unauthorized
 
-### 8. Read bookings without a token
+### 7. Read bookings without a token
 
 GET http://localhost:3000/bookings
 
@@ -264,3 +252,29 @@ Expected result: 200 OK
 - 403 Forbidden - User does not have the required role
 - 404 Not Found - Resource not found
 - 500 Internal Server Error - Server errors
+
+## Deployment
+
+### Backend + Frontend on Render (single service)
+1) Push your code to GitHub.
+2) Go to Render ? New ? Web Service.
+3) Connect your repo and select branch.
+4) Build command: `npm install`
+5) Start command: `npm start`
+6) Add environment variables:
+   - `MONGODB_URI`
+   - `JWT_SECRET`
+   - `PORT` (Render sets this automatically, no need to override)
+7) Deploy. Your frontend will be served from `public/` automatically.
+
+### Notes
+- Make sure your MongoDB Atlas IP Access List allows Render (use 0.0.0.0/0 for testing).
+- Do not commit `.env` to GitHub.
+
+## Admin Creation (Manual)
+
+After registering a user, promote them to admin with:
+
+node scripts/make-admin.js admin@example.com
+
+This updates the user role in MongoDB.

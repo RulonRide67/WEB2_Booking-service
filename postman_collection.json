@@ -6,32 +6,6 @@
   },
   "item": [
     {
-      "name": "Auth - Register Admin",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"email\": \"admin@test.com\",\n  \"password\": \"admin123\",\n  \"role\": \"admin\"\n}"
-        },
-        "url": {
-          "raw": "{{baseUrl}}/auth/register",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "auth",
-            "register"
-          ]
-        }
-      }
-    },
-    {
       "name": "Auth - Register User",
       "request": {
         "method": "POST",
@@ -156,7 +130,13 @@
           "path": [
             "services"
           ]
-        }
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ]
       }
     },
     {
@@ -200,7 +180,13 @@
           "path": [
             "bookings"
           ]
-        }
+        },
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ]
       }
     }
   ],
