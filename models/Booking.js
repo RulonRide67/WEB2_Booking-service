@@ -6,10 +6,10 @@ const bookingSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
-  serviceName: {
-    type: String,
+  service: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Service',
     required: true,
-    enum: ['Haircut', 'Massage', 'Consultation', 'Manicure', 'Training']
   },
   bookingDate: {
     type: Date,

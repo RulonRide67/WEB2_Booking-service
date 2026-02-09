@@ -49,6 +49,12 @@
             margin: 10px 0;
             border-left: 4px solid #4CAF50;
         }
+        .service-item {
+            background: #f3f7ff;
+            padding: 10px;
+            margin: 10px 0;
+            border-left: 4px solid #1e88e5;
+        }
         .auth-info {
             background: #e3f2fd;
             padding: 10px;
@@ -102,17 +108,31 @@
             <button class="logout-btn" onclick="logout()">Logout</button>
         </div>
 
+        <!-- Create Service Form (admin only) -->
+        <div class="section" id="createServiceSection">
+            <h2>Create New Service</h2>
+            <input type="text" id="serviceName" placeholder="Service Name" required>
+            <input type="text" id="serviceDescription" placeholder="Description" required>
+            <input type="number" id="servicePrice" placeholder="Base Price" min="0" required>
+            <input type="number" id="serviceDuration" placeholder="Default Duration (minutes)" min="1" required>
+            <input type="text" id="serviceCategory" placeholder="Category" required>
+            <button onclick="createService()">Create Service</button>
+            <div id="serviceCreateError" class="error"></div>
+            <div id="serviceCreateSuccess" class="success"></div>
+        </div>
+
+        <!-- Services List -->
+        <div class="section">
+            <h2>All Services</h2>
+            <button onclick="loadServices()">Refresh Services</button>
+            <div id="servicesList"></div>
+        </div>
+
         <!-- Create Booking Form (admin only) -->
         <div class="section" id="createBookingSection">
             <h2>Create New Booking</h2>
             <input type="text" id="customerName" placeholder="Customer Name" required>
-            <select id="serviceName">
-                <option value="Haircut">Haircut</option>
-                <option value="Massage">Massage</option>
-                <option value="Consultation">Consultation</option>
-                <option value="Manicure">Manicure</option>
-                <option value="Training">Training</option>
-            </select>
+            <select id="serviceId"></select>
             <input type="datetime-local" id="bookingDate" required>
             <input type="number" id="duration" placeholder="Duration (minutes)" min="15" required>
             <input type="number" id="price" placeholder="Price" min="0" required>
@@ -139,6 +159,7 @@
         window.onload = function() {
             if (token) {
                 showMainContent();
+                loadServices();
                 loadBookings();
             }
         };
@@ -191,6 +212,7 @@
                     
                     document.getElementById('loginError').textContent = '';
                     showMainContent();
+                    loadServices();
                     loadBookings();
                 } else {
                     document.getElementById('loginError').textContent = data.error;
@@ -217,16 +239,59 @@
             document.getElementById('userRole').textContent = currentUser.role;
 
             if (currentUser.role !== 'admin') {
+                document.getElementById('createServiceSection').classList.add('hidden');
                 document.getElementById('createBookingSection').classList.add('hidden');
             } else {
+                document.getElementById('createServiceSection').classList.remove('hidden');
                 document.getElementById('createBookingSection').classList.remove('hidden');
+            }
+        }
+
+        async function createService() {
+            const service = {
+                name: document.getElementById('serviceName').value,
+                description: document.getElementById('serviceDescription').value,
+                basePrice: parseFloat(document.getElementById('servicePrice').value),
+                defaultDuration: parseInt(document.getElementById('serviceDuration').value),
+                category: document.getElementById('serviceCategory').value
+            };
+
+            try {
+                const response = await fetch(`${API_URL}/services`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(service)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    document.getElementById('serviceCreateError').textContent = '';
+                    document.getElementById('serviceCreateSuccess').textContent = 'Service created successfully!';
+                    document.getElementById('serviceName').value = '';
+                    document.getElementById('serviceDescription').value = '';
+                    document.getElementById('servicePrice').value = '';
+                    document.getElementById('serviceDuration').value = '';
+                    document.getElementById('serviceCategory').value = '';
+                    loadServices();
+                    setTimeout(() => {
+                        document.getElementById('serviceCreateSuccess').textContent = '';
+                    }, 3000);
+                } else {
+                    document.getElementById('serviceCreateError').textContent = data.error;
+                }
+            } catch (error) {
+                document.getElementById('serviceCreateError').textContent = 'Error: ' + error.message;
             }
         }
 
         async function createBooking() {
             const booking = {
                 customerName: document.getElementById('customerName').value,
-                serviceName: document.getElementById('serviceName').value,
+                service: document.getElementById('serviceId').value,
                 bookingDate: document.getElementById('bookingDate').value,
                 duration: parseInt(document.getElementById('duration').value),
                 price: parseFloat(document.getElementById('price').value),
@@ -266,6 +331,42 @@
             }
         }
 
+        async function loadServices() {
+            try {
+                const response = await fetch(`${API_URL}/services`);
+                const services = await response.json();
+
+                const listDiv = document.getElementById('servicesList');
+                listDiv.innerHTML = '';
+
+                const serviceSelect = document.getElementById('serviceId');
+                serviceSelect.innerHTML = '';
+
+                if (services.length === 0) {
+                    listDiv.innerHTML = '<p>No services found.</p>';
+                    return;
+                }
+
+                services.forEach(service => {
+                    const option = document.createElement('option');
+                    option.value = service._id;
+                    option.textContent = `${service.name} (${service.category})`;
+                    serviceSelect.appendChild(option);
+
+                    const div = document.createElement('div');
+                    div.className = 'service-item';
+                    div.innerHTML = `
+                        <strong>${service.name}</strong> - ${service.category}<br>
+                        ${service.description}<br>
+                        Price: $${service.basePrice} | Default Duration: ${service.defaultDuration} min
+                    `;
+                    listDiv.appendChild(div);
+                });
+            } catch (error) {
+                console.error('Error loading services:', error);
+            }
+        }
+
         async function loadBookings() {
             try {
                 const response = await fetch(`${API_URL}/bookings`);
@@ -282,8 +383,9 @@
                 bookings.forEach(booking => {
                     const div = document.createElement('div');
                     div.className = 'booking-item';
+                    const serviceName = booking.service ? booking.service.name : 'Unknown service';
                     div.innerHTML = `
-                        <strong>${booking.customerName}</strong> - ${booking.serviceName}<br>
+                        <strong>${booking.customerName}</strong> - ${serviceName}<br>
                         Date: ${new Date(booking.bookingDate).toLocaleString()}<br>
                         Duration: ${booking.duration} min | Price: $${booking.price}<br>
                         Status: ${booking.status}<br>

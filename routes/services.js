@@ -3,14 +3,15 @@ const router = express.Router();
 const serviceController = require('../controllers/serviceController');
 const auth = require('../middleware/auth');
 const roleCheck = require('../middleware/roleCheck');
+const { validateService, validateObjectIdParam } = require('../middleware/validate');
 
 // Public routes
 router.get('/', serviceController.getAllServices);
-router.get('/:id', serviceController.getServiceById);
+router.get('/:id', validateObjectIdParam, serviceController.getServiceById);
 
 // Protected routes - admin only
-router.post('/', auth, roleCheck, serviceController.createService);
-router.put('/:id', auth, roleCheck, serviceController.updateService);
-router.delete('/:id', auth, roleCheck, serviceController.deleteService);
+router.post('/', auth, roleCheck, validateService, serviceController.createService);
+router.put('/:id', auth, roleCheck, validateObjectIdParam, validateService, serviceController.updateService);
+router.delete('/:id', auth, roleCheck, validateObjectIdParam, serviceController.deleteService);
 
 module.exports = router;

@@ -82,7 +82,7 @@ The server will run on http://localhost:3000
 ### Booking
 
 - customerName (String, required)
-- serviceName (String, required, must be one of: Haircut, Massage, Consultation, Manicure, Training)
+- service (ObjectId, required, reference to Service)
 - bookingDate (Date, required)
 - duration (Number, required, minimum 15)
 - price (Number, required, minimum 0)
@@ -144,6 +144,12 @@ When a user logs in, a JWT token is generated containing the user's ID and role.
 - PUT /services/:id - Update a service (admin only)
 - DELETE /services/:id - Delete a service (admin only)
 
+## Postman Collection
+
+A ready-to-import Postman collection is included in the project root:
+
+- `postman_collection.json`
+
 ## How to Test with Postman
 
 ### 1. Register an admin account
@@ -182,7 +188,31 @@ POST http://localhost:3000/auth/login
 
 Copy the token from the response.
 
-### 4. Create a booking as admin
+### 4. Create a service as admin
+
+POST http://localhost:3000/services
+
+Add the following header:
+```
+Authorization: Bearer YOUR_TOKEN_HERE
+```
+
+Body:
+```json
+{
+  "name": "Haircut",
+  "description": "Basic haircut service",
+  "basePrice": 25,
+  "defaultDuration": 60,
+  "category": "Salon"
+}
+```
+
+Expected result: 201 Created
+
+Copy the created service `_id` from the response.
+
+### 5. Create a booking as admin
 
 POST http://localhost:3000/bookings
 
@@ -195,7 +225,7 @@ Body:
 ```json
 {
   "customerName": "John Doe",
-  "serviceName": "Haircut",
+  "service": "PUT_SERVICE_ID_HERE",
   "bookingDate": "2026-03-25T14:00:00Z",
   "duration": 60,
   "price": 25,
@@ -205,19 +235,19 @@ Body:
 
 Expected result: 201 Created
 
-### 5. Try to create a booking as a regular user
+### 6. Try to create a booking as a regular user
 
 Login as user@test.com, copy the token, and repeat the request above with the user token.
 
 Expected result: 403 Forbidden
 
-### 6. Try to create a booking without a token
+### 7. Try to create a booking without a token
 
 Repeat the POST request without the Authorization header.
 
 Expected result: 401 Unauthorized
 
-### 7. Read bookings without a token
+### 8. Read bookings without a token
 
 GET http://localhost:3000/bookings
 
